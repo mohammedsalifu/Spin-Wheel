@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valentine's Day Spin Wheel</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        #registrationForm, #wheelContainer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        button:hover {
+            background: #ff6b6b;
+        }
+
+        #wheel {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+        }
+
+        #wheelCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #333;
+            z-index: 2;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="registrationForm">
+            <h2>Valentine's Day Spin Wheel</h2>
+            <input type="text" id="name" placeholder="Enter your name" required>
+            <input type="tel" id="phone" placeholder="Enter your phone number" required>
+            <button onclick="checkAndProceed()">Start Game</button>
+        </div>
+
+        <div id="wheelContainer" style="display: none;">
+            <div id="wheel">
+                <div id="pointer"></div>
+                <canvas id="wheelCanvas" width="300" height="300"></canvas>
+            </div>
+            <button id="spinButton" onclick="spinWheel()">SPIN</button>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const prizes = [
+            "50% OFF",
+            "Free Gift",
+            "10% OFF",
+            "Buy 1 Get 1",
+            "25% OFF",
+            "Mystery Gift",
+            "15% OFF",
+            "Free Shipping"
+        ];
+
+        const colors = [
+            "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
+            "#FFEEAD", "#D4A5A5", "#9B59B6", "#3498DB"
+        ];
+
+        let wheel;
+        let currentRotation = 0;
+        let isSpinning = false;
+
+        function initWheel() {
+            const canvas = document.getElementById("wheelCanvas");
+            const ctx = canvas.getContext("2d");
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2 - 10;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < prizes.length; i++) {
+                const angle = (i * 2 * Math.PI) / prizes.length;
+                const nextAngle = ((i + 1) * 2 * Math.PI) / prizes.length;
+
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, nextAngle);
+                ctx.closePath();
+
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + Math.PI / prizes.length);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 14px Arial";
+                ctx.fillText(prizes[i], radius - 20, 5);
+                ctx.restore();
+            }
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            const spins = 5;
+            const baseSpeed = 2;
+            const spinTime = 5000;
+            const randomSector = Math.floor(Math.random() * prizes.length);
+            const targetRotation = spins * 360 + (360 / prizes.length) * randomSector;
+            
+            const wheel = document.getElementById("wheelCanvas");
+            const startTime = Date.now();
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / spinTime, 1);
+                
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                currentRotation = targetRotation * easeOut;
+                
+                wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isSpinning = false;
+                    const result = prizes[randomSector];
+                    document.getElementById("result").textContent = `You won: ${result}!`;
+                    setTimeout(() => submitToGoogleForms(result), 2000);
+                }
+            }
+
+            animate();
+        }
+
+        function checkAndProceed() {
+            const name = document.getElementById("name").value.trim();
+            const phone = document.getElementById("phone").value.trim();
+
+            if (!name || !phone) {
+                alert("Please fill in all fields");
+                return;
+            }
+
+            const key = `${name}-${phone}`;
+            if (localStorage.getItem(key)) {
+                alert("You have already played the game!");
+                return;
+            }
+
+            localStorage.setItem(key, "played");
+            document.getElementById("registrationForm").style.display = "none";
+            document.getElementById("wheelContainer").style.display = "block";
+            initWheel();
+        }
+
+        function submitToGoogleForms(result) {
+            const name = document.getElementById("name").value;
+            const phone = document.getElementById("phone").value;
+            
+            // Replace with your Google Form URL
+            const googleFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSe33ucYe4HfcnM9mnaiKi8YovJfSWNGBNl30E_e650htPdCVg/viewform" +
+                `?Name=${encodeURIComponent(name)}` +
+                `&Phone Number=${encodeURIComponent(phone)}` +
+                `&Result=${encodeURIComponent(result)}`;
+
+            window.location.href = googleFormUrl;
+        }
+    </script>
+</body>
+</html>
